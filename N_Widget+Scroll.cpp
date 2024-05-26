@@ -41,7 +41,9 @@ Scrollable::Scrollable(double width, double heigth, double left, double top, Obj
     TypeELEM=("Scrollable");
     this->CONTENT=CONTENT;
     addChildren(CONTENT);
-
+    bool ParentContainCONTENT=false;
+    CONTENT->parent->removeChildren(CONTENT);
+    CONTENT->parent=this;
     CONTENT->moveToHARD(this->x()+0, this->y()+0);
     CONTENT->setSizeHARD(this->w() - 12, this->h());
     SCROLL = new ScrollBar(this, CONTENT);
@@ -59,7 +61,7 @@ ScrollBar::ScrollBar(Widget *parent, Widget *LinkedWidget)
     this->moveToHARD(parent->x()+parent->w() - 12, parent->y()+0);
     this->setSizeHARD(12, parent->h());
     this->LinkedWidget = LinkedWidget;
-    ScrollBody = {0, 0, 10, this->h() * this->h() / LinkedWidget->h()};
+    ScrollBody = {parent->x(), parent->y(), 10, this->h() * this->h() / LinkedWidget->h()};
     //T1 = new QTimer(this);
     //connect(T1, SIGNAL(timeout()), this, SLOT(Tick()));
 }

@@ -139,10 +139,11 @@ public:
     {
         //DrawFrame(Wind, p);
     }
-    void paintChild(QMainWindow *Wind, QPainter *p, QImage Imag, QRect frame=QRect(-1,-1,-1,-1))
+    virtual void paintChild(QMainWindow *Wind, QPainter *p, QImage Imag, QRect frame=QRect(-1,-1,-1,-1))
     {
         if (frame==QRect(-1,-1,-1,-1)) frame=QRect(this->x(), this->y(), this->width, this->heigth);
         for (auto now : child) {
+            p->setClipRect(frame);
             now->paint(Wind, p, Imag, frame);
         }
         for (auto now : child) {
@@ -164,6 +165,10 @@ public:
             return nullptr;
     }
     void addChildren(Object *SonOrDother) { child.push_back(SonOrDother); }
+    void removeChildren(Object *Elem){
+        auto it=std::find(child.begin(), child.end(), Elem);
+        if (it!=child.end()) child.erase(it);
+    }
     int w() { return width; }
     int h() { return heigth; }
     int x() { return left; }
@@ -209,10 +214,8 @@ public:
     }
     void setSizeHARD(double width, double heigth) override
     {
-        kofWidth = (double) this->width / this->parent->width;
-        kofHeigth = (double) this->heigth / this->parent->heigth;
-        kofLeft = ((double) this->left - this->parent->left) / this->parent->width;
-        kofTop = ((double) this->top - this->parent->top) / this->parent->heigth;
+        kofWidth = (double) width / this->parent->width;
+        kofHeigth = (double) heigth / this->parent->heigth;
         updateGeometry();
     }
     void setSize(double width, double heigth)
@@ -301,11 +304,36 @@ public:
         this->heigth = this->parent->h() * kofHeigth;
         this->left = kofLeft * this->parent->w() + this->parent->x();
         this->top = this->parent->y() + this->parent->h() * kofTop;
+        CONTENT->kofWidth=1.0-12.0/parent->w();
         CONTENT->updateGeometry();
-        child[1]->kofLeft=(width-12)/double(width);
-        child[1]->kofWidth=(12)/double(width);
         child[1]->updateGeometry();
     }
+
+    void paint(QMainWindow *Wind, QPainter *p, QImage Imag, QRect frame=QRect(-1,-1,-1,-1)) override
+    {
+        this->DrawFrame(p);
+    }
+
+    void paintChild(QMainWindow *Wind, QPainter *p, QImage Imag, QRect frame=QRect(-1,-1,-1,-1)) override
+    {
+        int up=frame.y(), down=frame.y()+frame.height();
+        int left=frame.x(), right=frame.x()+frame.width();
+
+        down=std::min(down, this->y()+this->h());
+        right=std::min(right, this->x()+this->w());
+        up=std::max(up, this->y());
+        left=std::max(left, this->x());
+
+        frame=QRect(QPoint(left, up), QPoint(right, down));
+        for (auto now : child) {
+            p->setClipRect(frame);
+            now->paint(Wind, p, Imag, frame);
+        }
+        for (auto now : child) {
+            now->paintChild(Wind, p, Imag, frame);
+        }
+    }
+
 
     void wheelEvent(QWheelEvent *event);
     Widget* CONTENT = nullptr;
@@ -324,19 +352,28 @@ public:
     }
     void paint(QMainWindow *Wind, QPainter *p, QImage Imag, QRect frame=QRect(-1,-1,-1,-1)) override
     {
-        QMessageBox::information(Wind, "", "repaint scroll bar");
+        if (parent!=nullptr && parent->TypeELEM=="Scrollable"){
+            Scrollable* par=(Scrollable*)this->parent;
+            if (par->CONTENT->kofHeigth<=1) return;
+        }
+        //DrawFrame(p);
         p->setBrush(QBrush(Qt::gray));
-        p->drawRect(0, 0, this->w(), this->h());
+        p->drawRect(this->x(), this->y(), this->w(), this->h());
         p->setBrush(QBrush(Qt::darkGray));
         p->drawRect(ScrollBody);
     }
 
     void updateGeometry() override{
+        this->kofLeft=1.0-12.0/(parent->w());
+        this->kofWidth=12.0/(parent->w());
+        this->kofHeigth=1.0;
+        this->kofTop=0.0;
+        //this->moveToHARD(parent->x()+parent->w() - 12, parent->y()+0);
+        //this->setSizeHARD(12, parent->h());
         this->width = this->parent->w() * kofWidth;
         this->heigth = this->parent->h() * kofHeigth;
         this->left = kofLeft * this->parent->w() + this->parent->x();
         this->top = this->parent->y() + this->parent->h() * kofTop;
-
         if (parent!=nullptr && parent->TypeELEM=="Scrollable"){
             Scrollable* par=(Scrollable*)this->parent;
             ScrollBody = {this->x(), this->y()-(par->CONTENT->kofTop)*this->h(), 10, std::max(2, h() * h() / par->CONTENT->h())};

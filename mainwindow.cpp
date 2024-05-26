@@ -51,10 +51,12 @@ MainWindow::MainWindow(QWidget *parent, QRect Desctop)
         new WhileBlock(0.85, 0.065, 0.06, 0.69, MainObject->child[0], this));
     MainObject->addChildren(new FuncPanel(0.1645, 0.377, 0.8355, 0.035, MainObject, this));
     MainObject->addChildren(new VariablePanel(0.1645, 0.56, 0.8355, 0.412, MainObject, this));
-    MainWorkSpace = new Workspace(0.748, 0.94, 0.087, 0.035, MainObject, nullptr, this);
+    MainWorkSpace = new Workspace(0.748, 0.5, 0.087, 0.035, MainObject, nullptr, this);
+
     MainWorkspace_father =new Scrollable(0.748, 0.94, 0.087, 0.035, MainObject, MainWorkSpace);
+
     //MainWorkSpace->addChildren(new WidgetM());
-    MainObject->addChildren(MainWorkSpace);
+    MainObject->addChildren(MainWorkspace_father);
 }
 
 QCursor c;
@@ -88,13 +90,14 @@ void MainWindow::Tick()
 
 void MainWindow::mousePressEvent(QMouseEvent *event)
 {
-    if (!FukingActiveSlot) {
+    if (!FukingActiveSlot) { //Если кнопка до этого не была нажата или была отжата
+        //Получение точки мыши в локальных кординатах окна
         this->TempArea.setX(c.pos().x() - this->geometry().left());
         this->TempArea.setY(c.pos().y() - this->geometry().top());
         //if (SelectObject!=nullptr &&)
         if (SelectObject != nullptr && SelectObject->IsBlock
             && SelectObject->child[0]->whoIsDaddy(&TempArea) == nullptr && SelectObject->activate
-            && SelectObject->child[1]->whoIsDaddy(&TempArea) != nullptr) {
+            && SelectObject->child[1]->whoIsDaddy(&TempArea) != nullptr) { //Если какой-то элемент активирован(Например открыто меню блока) и
         } else {
             if (SelectObject != nullptr && SelectObject->IsBlock && SelectObject->activate
                 && SelectObject->whoIsDaddy(&TempArea) == nullptr) {
@@ -181,6 +184,34 @@ void MainWindow::mouseReleaseEvent(QMouseEvent *event)
     RebuildThis(MainWorkSpace);
 }
 
+void MainWindow::wheelEvent(QWheelEvent *event){
+    this->TempArea.setX(c.pos().x() - this->geometry().left());
+    this->TempArea.setY(c.pos().y() - this->geometry().top());
+    Object* selectedItem=MainObject->whoIsDaddy(&TempArea);
+    while (selectedItem!=nullptr && ((Widget*)(selectedItem))->TypeELEM!="Scrollable")
+        selectedItem=selectedItem->parent;
+    if (selectedItem==nullptr) return;
+    Scrollable* ActiveScrollArea=(Scrollable*)selectedItem;
+    if (ActiveScrollArea->CONTENT->kofHeigth<=1){//QMessageBox::information(this, "Info", QString::number(ActiveScrollArea->h()/double(ActiveScrollArea->CONTENT->h())));
+        return;
+    }
+    if (event->angleDelta().y() > 0) {
+        ActiveScrollArea->CONTENT->moveHARD(0, 15 * 2);
+        if (ActiveScrollArea->CONTENT->kofTop >= 0) {
+            ActiveScrollArea->CONTENT->kofTop=0;
+        }
+        ActiveScrollArea->updateGeometry();
+        repaint();
+    } else {
+        ActiveScrollArea->CONTENT->moveHARD(0, -15 * 2);
+        if (ActiveScrollArea->CONTENT->h() + ActiveScrollArea->CONTENT->y() <= ActiveScrollArea->h()+ActiveScrollArea->y()) {
+            ActiveScrollArea->CONTENT->moveHARD(0, ActiveScrollArea->h()+ActiveScrollArea->y() - (ActiveScrollArea->CONTENT->h() + ActiveScrollArea->CONTENT->y()));
+        }
+        ActiveScrollArea->updateGeometry();
+        repaint();
+    }
+}
+
 MainWindow::~MainWindow()
 {
     delete T;
@@ -233,11 +264,13 @@ void MainWindow::RebuildThis(Workspace *AnyWorkSpace)
         if (PointY > 1.0){
 
             for(auto child: AnyWorkSpace->child){
-                child->kofTop=double(child->y())/(AnyWorkSpace->h()*PointY);
-                child->kofHeigth=double(child->h())/(AnyWorkSpace->h()*PointY);
+                child->kofTop=(child->y()-AnyWorkSpace->y())/double(PointY*AnyWorkSpace->h());
+                child->kofHeigth=(child->h())/double(PointY*AnyWorkSpace->h());
             }
-            AnyWorkSpace->setSize(AnyWorkSpace->kofWidth, PointY);
-            //QMessageBox::information(this, "Info", QString("heiht=")+QString::number(AnyWorkSpace->h()));
+
+            AnyWorkSpace->kofHeigth=PointY*AnyWorkSpace->h()/AnyWorkSpace->parent->h();
+            //AnyWorkSpace->setSize(AnyWorkSpace->kofWidth, PointY);
+            QMessageBox::information(this, "Info", QString::number(AnyWorkSpace->child[0]->h())+"="+QString::number(AnyWorkSpace->h()*PointY*AnyWorkSpace->child[0]->kofHeigth));
             if (AnyWorkSpace->parent!=nullptr && AnyWorkSpace->parent->TypeELEM=="Scrollable"){
                 AnyWorkSpace->parent->updateGeometry();
             }
